@@ -41,7 +41,6 @@ def vertical_profile_plot(
 
     # Sort times and indices
     sorted_indices = np.argsort(times.to_numpy())
-    sorted_times = times[sorted_indices]
     sorted_occultation = occultation_type_value[sorted_indices]
 
     # Locate the index of the current profile in the sorted array
@@ -170,11 +169,12 @@ def vertical_profile_plot(
 # Example usage:
 # vertical_profile_plot("H2O", molecule_data, flag_data, date_index=100, n_surrounding=3)
 
-def filter_date_indices(molecule_data, flag_data, date_indices):
+def filter_date_indices(molecule_name, molecule_data, flag_data, date_indices):
     """
     Filters date indices to remove those with instrumental error flags (7) or missing flag profiles.
 
     Parameters:
+    - molecule_name: String containing the name of the molecule for the given data.
     - molecule_data: Xarray dataset with molecule data.
     - flag_data: Xarray dataset with quality flags.
     - date_indices: List of date indices to filter.
@@ -199,7 +199,7 @@ def filter_date_indices(molecule_data, flag_data, date_indices):
                 continue  # Skip this date index
 
             mask = (flags_profile != 8) & (flags_profile != 9)
-            vmr = molecule_data['H2O'][date_index, :].values[mask]
+            vmr = molecule_data[molecule_name][date_index, :].values[mask]
             if len(vmr) == 0:
                 print(f"VMR for date index {date_index} is empty after screening")
                 continue
@@ -219,23 +219,27 @@ def encode_time_features(year, month, day, hour):
     """Encodes time features (cyclic encoding for periodicity)."""
     month_sin = np.sin(2 * np.pi * month / 12)
     month_cos = np.cos(2 * np.pi * month / 12)
+    day_sin = np.sin(2 * np.pi * day / 31)
+    day_cos = np.cos(2 * np.pi * day / 31)
     hour_sin = np.sin(2 * np.pi * hour / 24)
     hour_cos = np.cos(2 * np.pi * hour / 24)
     year_normalized = (year - 2004) / (2024 - 2004)  # Normalize between 0 and 1
-    return np.array([year_normalized, month_sin, month_cos, hour_sin, hour_cos])
+    return np.array([year_normalized, month_sin, month_cos, day_sin, day_cos, hour_sin, hour_cos])
 
 def preprocess_profile_data(
-    molecule_name, molecule_data, flag_data, date_indices, n_surrounding=2, n_altitudes=100
+    molecule_name, molecule_data, flag_data, date_indices, n_surrounding=2, n_altitudes=100, filter_indices=False
 ):
     """
     Preprocesses data for training the CNN-LSTM model.
 
     Parameters:
+    - molecule_name: String containing the name of the molecule for the given data.
     - molecule_data: Xarray dataset with molecule data.
     - flag_data: Xarray dataset with quality flags.
     - date_indices: List of indices for profiles to process.
     - n_surrounding: Number of surrounding profiles to include.
     - n_altitudes: Fixed number of altitude levels (for padding/truncation).
+    - filter_indices: Boolean indicating whether to filter date indices.
 
     Returns:
     - X: Feature array of shape (n_samples, n_profiles, n_altitudes, n_features).
@@ -243,6 +247,7 @@ def preprocess_profile_data(
     """
     features = []
     labels = []
+    feature_indices = []
 
     # Extract time and surrounding profiles
     years = molecule_data['year'].values
@@ -263,17 +268,17 @@ def preprocess_profile_data(
     occultation_type_value = np.where((sunset_sunrise == 0) | (sunset_sunrise == 2), "Sunset", "Sunrise")
 
     # Filter date indices to remove profiles with instrumental error flags (7) or missing flag profiles
-    filtered_date_indices = filter_date_indices(molecule_data, flag_data, date_indices)
+    if filter_indices:
+        date_indices = filter_date_indices(molecule_name, molecule_data, flag_data, date_indices)
 
 
     # Iterate through each profile in the dataset
-    for date_index in filtered_date_indices:
+    for date_index in date_indices:
 
         current_occultation = occultation_type_value[date_index]
 
         # Sort profiles by time
         sorted_indices = np.argsort(times.to_numpy())
-        sorted_times = times[sorted_indices]
         sorted_occultation = occultation_type_value[sorted_indices]
 
         # Locate the index of the current profile in the sorted array
@@ -285,7 +290,7 @@ def preprocess_profile_data(
 
         while len(preceding_indices) < n_surrounding and current_pointer >= 0:
             idx = sorted_indices[current_pointer]
-            if sorted_occultation[current_pointer] == current_occultation and idx in filtered_date_indices:
+            if sorted_occultation[current_pointer] == current_occultation and idx in date_indices:
                 preceding_indices.append(idx)  # Store the index in sorted array
             current_pointer -= 1  # Move to the previous index
 
@@ -304,82 +309,77 @@ def preprocess_profile_data(
             # Extract data for the profile
             orbit_number = molecule_data['orbit'][idx].values
             ss = molecule_data['sunset_sunrise'][idx].values
-            try:
-                flags_profile = flag_data['quality_flag'].sel(orbit=orbit_number, sunset_sunrise=ss).values
-                vmr = molecule_data[molecule_name][idx, :].values.flatten()
-                altitude = molecule_data['altitude'].values
+            flags_profile = flag_data['quality_flag'].sel(orbit=orbit_number, sunset_sunrise=ss).values
+            vmr = molecule_data[molecule_name][idx, :].values.flatten()
+            altitude = molecule_data['altitude'].values
 
-                # Mask invalid values
-                mask = (flags_profile != 9) & (flags_profile != 8)
-                vmr = vmr[mask]
-                altitude = altitude[mask]
-                flags_profile = flags_profile[mask]
+            # Mask invalid values
+            mask = (flags_profile != 9) & (flags_profile != 8)
+            vmr = vmr[mask]
+            altitude = altitude[mask]
+            flags_profile = flags_profile[mask]
 
-                # Screen for negative VMR values
-                positive_mask = vmr >= 0
-                vmr = vmr[positive_mask]
-                altitude = altitude[positive_mask]
-                flags_profile = flags_profile[positive_mask]
+            # Screen for negative VMR values
+            positive_mask = vmr >= 0
+            vmr = vmr[positive_mask]
+            altitude = altitude[positive_mask]
+            flags_profile = flags_profile[positive_mask]
 
-                # Normalize VMR, altitude values
-                if len(vmr) == 0:
-                    print(f"BUG: VMR for date index {idx} is empty after screening. Surrounding indices: {surrounding_indices}")
-                vmr = vmr / np.max(vmr)
-                altitude = altitude / np.max(molecule_data['altitude'].values)
+            # Normalize VMR, altitude values
+            if len(vmr) == 0:
+                print(f"BUG: VMR for date index {idx} is empty after screening. Surrounding indices: {surrounding_indices}")
+            vmr = vmr / np.max(vmr)
+            altitude = altitude / np.max(molecule_data['altitude'].values)
 
-                # Identify if the current profile is bad
-                if np.any((flags_profile == 4) | (flags_profile == 5) | (flags_profile == 6)):
-                    is_bad = True
+            # Identify if the current profile is bad
+            if idx == date_index and np.any((flags_profile == 4) | (flags_profile == 5) | (flags_profile == 6)):
+                is_bad = True
 
-                # Pad or truncate to fixed altitude levels
-                vmr_padded = np.pad(vmr, (0, n_altitudes - len(vmr)), constant_values=-0.1)[:n_altitudes]
-                altitude_padded = np.pad(altitude, (0, n_altitudes - len(altitude)), constant_values=-0.1)[:n_altitudes]
+            # Pad or truncate to fixed altitude levels
+            vmr_padded = np.pad(vmr, (0, n_altitudes - len(vmr)), constant_values=-0.1)[:n_altitudes]
+            altitude_padded = np.pad(altitude, (0, n_altitudes - len(altitude)), constant_values=-0.1)[:n_altitudes]
 
-                # Encode time features and latitude
-                year = molecule_data['year'][idx].values
-                month = molecule_data['month'][idx].values
-                day = molecule_data['day'][idx].values
-                hour = molecule_data['hour'][idx].values
-                latitude = molecule_data['latitude'][idx].values/90  # Normalize latitude between -1 and 1
-                time_features = encode_time_features(year, month, day, hour)
+            # Encode time features and latitude
+            year = molecule_data['year'][idx].values
+            month = molecule_data['month'][idx].values
+            day = molecule_data['day'][idx].values
+            hour = molecule_data['hour'][idx].values
+            latitude = molecule_data['latitude'][idx].values/90  # Normalize latitude between -1 and 1
+            time_features = encode_time_features(year, month, day, hour)
 
-                # Add indicator for the current profile
-                is_current_profile = 1 if idx == date_index else 0
-                indicator = np.full(n_altitudes, is_current_profile)
+            # Add indicator for the current profile
+            is_current_profile = 1 if idx == date_index else 0
+            indicator = np.full(n_altitudes, is_current_profile)
 
-                # Combine features for this profile
-                profile_vector = np.column_stack([
-                    vmr_padded,             # VMR values
-                    altitude_padded,        # Altitude
-                    np.full(n_altitudes, latitude),  # Latitude (same for all altitudes)
-                    np.tile(time_features, (n_altitudes, 1)),  # Repeat time features for all altitudes
-                    indicator  # Indicator for the current profile
-                ])
-                profile_features.append(profile_vector)
+            # Combine features for this profile
+            profile_vector = np.column_stack([
+                vmr_padded,             # VMR values
+                altitude_padded,        # Altitude
+                np.full(n_altitudes, latitude),  # Latitude (same for all altitudes)
+                np.tile(time_features, (n_altitudes, 1)),  # Repeat time features for all altitudes
+                indicator  # Indicator for the current profile
+            ])
+            profile_features.append(profile_vector)
             
-
-
-            except KeyError:
-                print(f"Skipping missing orbit/sunset_sunrise pair: orbit={orbit_number}, sunset_sunrise={ss}")
-                skip_sample = True
-                continue
 
         if len(profile_features) < n_surrounding + 1:
             skip_sample = True
 
-        # Skip the sample if any profile is missing
+        # Skip the sample if any profile_feature does not contain sufficient profiles
         if skip_sample:
             continue
 
-        # Append features and label for the current profile
+        # Append features and label for the current sample of profiles, as well as the date indices of each profile in the sample
         features.append(profile_features)
         labels.append(1 if is_bad else 0)
+        feature_indices.append(surrounding_indices)
     
 
     # Convert to numpy arrays
     X = np.array(features)  # Shape: (n_samples, n_profiles, n_altitudes, n_features)
     y = np.array(labels)    # Shape: (n_samples,)
-    return X, y
+    Z = np.array(feature_indices) # Shape: (n_samples, n_profiles)
+    return X, y, Z
 
 # Example usage:
-# X, y = preprocess_profile_data(h2o_data, h2o_flags, bad_profile_indices, n_surrounding=2, n_altitudes=100)
+# X, y = preprocess_profile_data('H2O', h2o_data, h2o_flags, bad_profile_indices, n_surrounding=2, n_altitudes=100, filter_indices=True)
