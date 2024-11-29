@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
 def vertical_profile_plot(
-    molecule_name, molecule_data, flag_data, date_index=0, n_surrounding=1
+    molecule_name, molecule_data, flag_data, date_index=0, n_surrounding=1, screen_neg_values = True
 ):
     """
     Plots the vertical gas profile (VMR against altitude) for the inputted molecule at the given date_index,
@@ -17,6 +17,7 @@ def vertical_profile_plot(
     date_index (int): Index/List of the profile(s) to examine (default is 0). If a list is provided, the current profile should 
     correspond to the last index in the list.
     n_surrounding (int): Number of profiles before and after the current one to include in the plot.
+    screen_neg_values (bool): If True, negative VMR values are removed from the plot.
 
     Returns:
     None
@@ -64,22 +65,22 @@ def vertical_profile_plot(
         current_date_index = date_index[-1]
         current_occultation = occultation_type_value[current_date_index]
 
-    # Compute offset for logscale plot
-    min_vmr = 0
-    for i in surrounding_indices:
-        molecule_vmr = molecule_data[f'{molecule_name}'][i, :].values.flatten()
-        mask = (flag_data['quality_flag'].sel(orbit=molecule_data['orbit'][i].values, sunset_sunrise=sunset_sunrise[i]).values != 9) & (flag_data['quality_flag'].sel(orbit=molecule_data['orbit'][i].values, sunset_sunrise=sunset_sunrise[i]).values != 8)
-        molecule_vmr = molecule_vmr[mask]
-        if len(molecule_vmr) == 0:
-            continue
-        min_vmr_i = np.min(molecule_vmr)
-        if min_vmr_i <= 0 and min_vmr_i < min_vmr:
-            min_vmr = min_vmr_i
-        
-    if min_vmr < 0:
-        offset = abs(min_vmr) + 1e-7
-    else:
-        offset = 0
+    # Compute offset for logscale plot if negative values are not screened
+    offset = 0
+    if screen_neg_values == False:
+        min_vmr = 0
+        for i in surrounding_indices:
+            molecule_vmr = molecule_data[f'{molecule_name}'][i, :].values.flatten()
+            mask = (flag_data['quality_flag'].sel(orbit=molecule_data['orbit'][i].values, sunset_sunrise=sunset_sunrise[i]).values != 9) & (flag_data['quality_flag'].sel(orbit=molecule_data['orbit'][i].values, sunset_sunrise=sunset_sunrise[i]).values != 8)
+            molecule_vmr = molecule_vmr[mask]
+            if len(molecule_vmr) == 0:
+                continue
+            min_vmr_i = np.min(molecule_vmr)
+            if min_vmr_i <= 0 and min_vmr_i < min_vmr:
+                min_vmr = min_vmr_i
+            
+        if min_vmr < 0:
+            offset = abs(min_vmr) + 1e-7
 
 
     # Helper function to plot a single profile
@@ -102,8 +103,13 @@ def vertical_profile_plot(
         mask = (flags_profile != 9) & (flags_profile != 8)
         molecule_vmr = molecule_vmr[mask] + offset
         altitude = molecule_data['altitude'].values[mask]
-        #print(np.column_stack([molecule_vmr, altitude]))
         flags_profile = flags_profile[mask]
+
+        if screen_neg_values:
+            positive_mask = molecule_vmr >= 0
+            molecule_vmr = molecule_vmr[positive_mask]
+            altitude = altitude[positive_mask]
+            flags_profile = flags_profile[positive_mask]
 
         # Identify flagged values
         outlier_mask = (flags_profile == 4) | (flags_profile == 5) | (flags_profile == 6)
