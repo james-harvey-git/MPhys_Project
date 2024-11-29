@@ -14,7 +14,8 @@ def vertical_profile_plot(
     molecule_name (String): Name of the molecule for the given data.
     molecule_data (Xarray): Xarray for ACE-FTS molecule NetCDF file.
     flag_data (Xarray): Xarray for ACE-FTS molecule quality flags NetCDF file.
-    date_index (int): Index of the profile to examine (default is 0).
+    date_index (int): Index/List of the profile(s) to examine (default is 0). If a list is provided, the current profile should 
+    correspond to the last index in the list.
     n_surrounding (int): Number of profiles before and after the current one to include in the plot.
 
     Returns:
@@ -37,23 +38,30 @@ def vertical_profile_plot(
 
     # Define occultation type: 0 or 2 -> Sunset, 1 or 3 -> Sunrise
     occultation_type_value = np.where((sunset_sunrise == 0) | (sunset_sunrise == 2), "Sunset", "Sunrise")
-    current_occultation = occultation_type_value[date_index]
 
-    # Sort times and indices
-    sorted_indices = np.argsort(times.to_numpy())
-    sorted_occultation = occultation_type_value[sorted_indices]
+    # If statement to handle single date_index input
+    if isinstance(date_index, int):
+        current_date_index = date_index
+        current_occultation = occultation_type_value[current_date_index]
 
-    # Locate the index of the current profile in the sorted array
-    current_sorted_index = np.where(sorted_indices == date_index)[0][0]
+        # Sort times and indices
+        sorted_indices = np.argsort(times.to_numpy())
+        sorted_occultation = occultation_type_value[sorted_indices]
 
-    # Get surrounding indices with the same occultation type
-    same_occultation_indices = [
-        idx for idx in range(max(0, current_sorted_index - n_surrounding),
-                             min(len(sorted_indices), current_sorted_index + n_surrounding + 1))
-        if sorted_occultation[idx] == current_occultation
-    ]
+        # Locate the index of the current profile in the sorted array
+        current_sorted_index = np.where(sorted_indices == current_date_index)[0][0]
 
-    surrounding_indices = sorted_indices[same_occultation_indices]
+        # Get surrounding indices with the same occultation type
+        same_occultation_indices = [
+            idx for idx in range(max(0, current_sorted_index - n_surrounding),
+                                min(len(sorted_indices), current_sorted_index + n_surrounding + 1))
+            if sorted_occultation[idx] == current_occultation
+        ]
+
+        surrounding_indices = sorted_indices[same_occultation_indices]
+    else:
+        surrounding_indices = date_index
+        current_date_index = date_index[-1]
 
     # Compute offset for logscale plot
     min_vmr = 0
@@ -141,13 +149,13 @@ def vertical_profile_plot(
 
     # Plot surrounding profiles
     for i, idx in enumerate(surrounding_indices):
-        if idx == date_index:
+        if idx == current_date_index:
             current_profile_i = i
             break
 
     for i, idx in enumerate(surrounding_indices):
         label_suffix = (
-            "Current Profile" if idx == date_index 
+            "Current Profile" if idx == current_date_index 
             else f"Profile {i - current_profile_i}"
             )
         add_legend_labels = (i == len(surrounding_indices)-1)  # Only add legend labels for the last profile
@@ -159,7 +167,7 @@ def vertical_profile_plot(
     plt.xlabel(f"{molecule_name} VMR [ppv]")
     plt.ylabel("Altitude [km]")
     plt.xscale("log")
-    current_time = times[date_index]
+    current_time = times[current_date_index]
     plt.title(
         f"Vertical Profiles for {molecule_name} on and around {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})"
     )
