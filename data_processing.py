@@ -40,7 +40,7 @@ def vertical_profile_plot(
     occultation_type_value = np.where((sunset_sunrise == 0) | (sunset_sunrise == 2), "Sunset", "Sunrise")
 
     # If statement to handle single date_index input
-    if isinstance(date_index, int):
+    if isinstance(date_index, np.int64):
         current_date_index = date_index
         current_occultation = occultation_type_value[current_date_index]
 
