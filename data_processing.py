@@ -62,6 +62,7 @@ def vertical_profile_plot(
     else:
         surrounding_indices = date_index
         current_date_index = date_index[-1]
+        current_occultation = occultation_type_value[current_date_index]
 
     # Compute offset for logscale plot
     min_vmr = 0
