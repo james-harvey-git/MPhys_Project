@@ -123,7 +123,7 @@ def vertical_profile_plot(
         error_altitude = altitude[inst_error_mask]
 
         # Plot
-        plt.scatter(
+        plt.plot(
             molecule_vmr, altitude,
             label=f"{molecule_name} {label_suffix}, {occultation_type}, latitude = {latitude}",
             color=color, alpha=0.6
