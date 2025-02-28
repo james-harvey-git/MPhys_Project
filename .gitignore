@@ -4,4 +4,7 @@ __pycache__
 ACEFTS_L2_v5p2_H2O.nc
 ACEFTS_L2_v5p2_flags_H2O.nc
 .vscode
-VAE.ipynb
+h2o_vmr_hist.png
+h2o_vmr_hist_24.5km.png
+h2o_vmr_hist_60km.png
+cnn_lstm_model.png
