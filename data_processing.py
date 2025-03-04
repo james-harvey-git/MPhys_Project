@@ -133,19 +133,19 @@ def vertical_profile_plot(
                 outlier_vmr, outlier_altitude,
                 marker = '^' ,facecolors="none", edgecolors="red", s=70, linewidths=1.5, label="Flagged unnatural outliers", alpha=0.7
             )
-            plt.scatter(
-                error_vmr, error_altitude,
-                marker = 's',facecolors="none", edgecolors="black", s=70, linewidths=1.5, label="Flagged instrument errors", alpha = 0.7
-            )
+            #plt.scatter(
+                #error_vmr, error_altitude,
+                #marker = 's',facecolors="none", edgecolors="black", s=70, linewidths=1.5, label="Flagged instrument errors", alpha = 0.7
+            #)
         else:
             plt.scatter(
                 outlier_vmr, outlier_altitude,
                 marker = '^',facecolors="none", edgecolors="red", s=70, linewidths=1.5, alpha = 0.7
             )
-            plt.scatter(
-                error_vmr, error_altitude,
-                marker= 's', facecolors="none", edgecolors="black", s=70, linewidths=1.5, alpha = 0.7
-            )
+            #plt.scatter(
+                #error_vmr, error_altitude,
+                #marker= 's', facecolors="none", edgecolors="black", s=70, linewidths=1.5, alpha = 0.7
+            #)
 
     # Create the plot
     plt.figure(figsize=(10, 12))
@@ -168,17 +168,20 @@ def vertical_profile_plot(
         add_legend_labels = (i == len(surrounding_indices)-1)  # Only add legend labels for the last profile
         plot_single_profile(idx, label_suffix, colors[i], add_legend_labels)
 
-    plt.scatter([], [], label = f'Offset = {offset:.2e}', color = 'none', edgecolor = 'none')
+    #plt.scatter([], [], label = f'Offset = {offset:.2e}', color = 'none', edgecolor = 'none')
 
     # Add labels, title, and legend
-    plt.xlabel(f"{molecule_name} VMR [ppv]")
-    plt.ylabel("Altitude [km]")
+    plt.xlabel(f"{molecule_name} VMR [ppv]", fontsize = 14)
+    plt.ylabel("Altitude [km]", fontsize = 14)
     plt.xscale("log")
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
     current_time = times[current_date_index]
     plt.title(
-        f"Vertical Profiles for {molecule_name} on and around {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})"
+        f"Vertical Profiles for {molecule_name} on and around {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})",
+        fontsize = 16
     )
-    plt.legend()
+    plt.legend(fontsize = 14)
     plt.show()
 
 # Example usage:
