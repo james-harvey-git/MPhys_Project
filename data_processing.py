@@ -171,17 +171,17 @@ def vertical_profile_plot(
     #plt.scatter([], [], label = f'Offset = {offset:.2e}', color = 'none', edgecolor = 'none')
 
     # Add labels, title, and legend
-    plt.xlabel(f"{molecule_name} VMR [ppv]", fontsize = 14)
-    plt.ylabel("Altitude [km]", fontsize = 14)
+    plt.xlabel(f"{molecule_name} VMR [ppv]", fontsize = 20)
+    plt.ylabel("Altitude [km]", fontsize = 20)
     plt.xscale("log")
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
+    plt.xticks(fontsize=18)
+    plt.yticks(fontsize=18)
     current_time = times[current_date_index]
     plt.title(
         f"Vertical Profiles for {molecule_name} on and around {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})",
-        fontsize = 16
+        fontsize = 20
     )
-    plt.legend(fontsize = 14)
+    plt.legend(fontsize = 16)
     plt.show()
 
 # Example usage:
