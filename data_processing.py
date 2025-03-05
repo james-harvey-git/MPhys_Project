@@ -178,10 +178,11 @@ def vertical_profile_plot(
     plt.yticks(fontsize=18)
     current_time = times[current_date_index]
     plt.title(
-        f"Vertical Profiles for {molecule_name} on and around {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})",
+        #f"Vertical Profiles for {molecule_name} on and around {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})",
+        f"Vertical Profile for {molecule_name} on {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})",
         fontsize = 20
     )
-    plt.legend(fontsize = 16)
+    plt.legend(fontsize = 17)
     plt.show()
 
 # Example usage:
