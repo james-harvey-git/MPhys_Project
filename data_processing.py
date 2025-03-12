@@ -152,6 +152,7 @@ def vertical_profile_plot(
 
     # Assign colors to profiles
     colors = plt.cm.viridis(np.linspace(0, 1, len(surrounding_indices)))
+    colors = plt.cm.turbo(np.linspace(0, 1, len(surrounding_indices)))
     #colors = plt.cm.tab10(np.linspace(0, 1, len(surrounding_indices)))
 
     # Plot surrounding profiles
@@ -178,8 +179,8 @@ def vertical_profile_plot(
     plt.yticks(fontsize=18)
     current_time = times[current_date_index]
     plt.title(
-        #f"Vertical Profiles for {molecule_name} on and around {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})",
-        f"Vertical Profile for {molecule_name} on {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})",
+        f"Vertical Profiles for {molecule_name} on and around {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})",
+        #f"Vertical Profile for {molecule_name} on {current_time.strftime('%Y-%m-%d %H:%M:%S')} ({current_occultation})",
         fontsize = 20
     )
     plt.legend(fontsize = 17)
