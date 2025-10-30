@@ -125,7 +125,7 @@ def vertical_profile_plot(
         # Plot
         plt.plot(
             molecule_vmr, altitude,
-            label=f"{molecule_name} {label_suffix}, {occultation_type}, latitude = {latitude}",
+            label=f"{label_suffix}, latitude = {latitude}",
             color=color, alpha=0.6
         )
         if add_legend_labels:
@@ -332,28 +332,25 @@ def preprocess_profile_data(
             flags_profile = flag_data['quality_flag'].sel(orbit=orbit_number, sunset_sunrise=ss).values
             vmr = molecule_data[molecule_name][idx, :].values.flatten()
             altitude = molecule_data['altitude'].values
-            temperature = molecule_data['temperature'][idx, :].values
 
             # Mask invalid values
             mask = (flags_profile != 9) & (flags_profile != 8)
             vmr = vmr[mask]
             altitude = altitude[mask]
             flags_profile = flags_profile[mask]
-            temperature = temperature[mask]
 
             # Screen for negative VMR values
             positive_mask = vmr >= 0
             vmr = vmr[positive_mask]
             altitude = altitude[positive_mask]
             flags_profile = flags_profile[positive_mask]
-            temperature = temperature[positive_mask]
+
 
             # Normalize VMR, altitude values
             if len(vmr) == 0:
                 print(f"BUG: VMR for date index {idx} is empty after screening. Surrounding indices: {surrounding_indices}")
             vmr = vmr / np.max(vmr)
             altitude = altitude / np.max(molecule_data['altitude'].values)
-            temperature = temperature / np.max(temperature)
 
             # Identify if the current profile is bad
             if idx == date_index and np.any((flags_profile == 4) | (flags_profile == 5) | (flags_profile == 6)):
@@ -362,7 +359,6 @@ def preprocess_profile_data(
             # Pad or truncate to fixed altitude levels
             vmr_padded = np.pad(vmr, (0, n_altitudes - len(vmr)), constant_values=-0.1)[:n_altitudes]
             altitude_padded = np.pad(altitude, (0, n_altitudes - len(altitude)), constant_values=-0.1)[:n_altitudes]
-            temperature_padded = np.pad(temperature, (0, n_altitudes - len(temperature)), constant_values = -0.1)[:n_altitudes]
 
             # Encode time features and latitude
             year = molecule_data['year'][idx].values
@@ -382,7 +378,6 @@ def preprocess_profile_data(
                 altitude_padded,        # Altitude
                 np.full(n_altitudes, latitude),  # Latitude (same for all altitudes)
                 np.tile(time_features, (n_altitudes, 1)),  # Repeat time features for all altitudes
-                temperature_padded,
                 indicator  # Indicator for the current profile
             ])
             profile_features.append(profile_vector)
